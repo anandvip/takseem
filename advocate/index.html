@@ -49,7 +49,7 @@ button.ghost{background:transparent;color:var(--mute);border-color:var(--line);p
 <body>
 <div class="wrap">
   <h1>Case Advocates</h1>
-  <p class="sub">Pehowa tehsil land matter &middot; draft v0.3 &middot; saved only in this browser</p>
+  <p class="sub">Pehowa tehsil land matter &middot; draft v0.4 &middot; saved only in this browser</p>
 
   <div class="stats">
     <div class="stat"><b id="sAdv">0</b><span>Advocates</span></div>
@@ -74,6 +74,8 @@ button.ghost{background:transparent;color:var(--mute);border-color:var(--line);p
     <button>Add entry</button>
   </form>
   <div class="row">
+    <button class="ghost" id="imp">Import JSON</button>
+    <input type="file" id="impf" accept=".json,application/json" hidden>
     <button class="ghost" id="exp">Export JSON</button>
     <button class="ghost" id="rst">Reset to starting data</button>
     <span class="st" id="st">Saved</span>
@@ -148,6 +150,58 @@ rowsEl.addEventListener("paste",e=>{
 document.getElementById("exp").onclick=()=>{
   const b=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="advocates.json";a.click();
+};
+// ---- Import JSON: tolerant of this page's own export and of generic journal exports ----
+const pick=(o,keys)=>{for(const k of keys){const f=Object.keys(o).find(x=>x.toLowerCase()===k);if(f!==undefined&&o[f]!==null&&o[f]!=="")return o[f]}};
+function toISO(v){
+  if(v===undefined)return null;
+  if(typeof v==="number"){const d=new Date(v>1e11?v:v*1000);return isNaN(d)?null:d.toISOString().slice(0,10)}
+  const t=String(v).trim();
+  let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);       // day first, as written in your notes
+  if(m){const y=m[3].length===2?"20"+m[3]:m[3];return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}
+  const d=new Date(t);return isNaN(d)?null:d.toISOString().slice(0,10);
+}
+function toAmt(v){
+  if(typeof v==="number")return v;
+  if(v===undefined)return null;
+  const t=String(v).toLowerCase().replace(/[₹,\s]|rs\.?|inr/g,"");
+  const m=t.match(/^(-?)(\d+(?:\.\d+)?)(k)?$/);
+  if(!m)return null;
+  return (m[1]?-1:1)*Number(m[2])*(m[3]?1000:1);
+}
+function normalise(raw){
+  let list=raw;
+  if(!Array.isArray(list))list=raw.ledger||raw.entries||raw.payments||raw.transactions||raw.items||raw.data||[];
+  const out=[],bad=[];
+  list.forEach((o,i)=>{
+    if(!o||typeof o!=="object"){bad.push(i+1);return}
+    const date=toISO(pick(o,["date","dt","day","paidon","paid_on","when","timestamp","createdat","created_at","time"]));
+    const amt=toAmt(pick(o,["amt","amount","value","paid","rupees","inr","sum"]));
+    let note=String(pick(o,["note","notes","description","desc","remark","remarks","text","title","memo","entry","content"])||"").trim();
+    const mode=pick(o,["mode","method","via","type"]);
+    if(mode&&!note.toLowerCase().includes(String(mode).toLowerCase()))note=note?`${mode} - ${note}`:String(mode);
+    if(!date||amt===null||isNaN(amt)){bad.push(i+1);return}
+    out.push({id:o.id&&String(o.id)||"",date,amt,note,flag:o.flag===true});
+  });
+  return {out,bad};
+}
+document.getElementById("imp").onclick=()=>document.getElementById("impf").click();
+document.getElementById("impf").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";
+  if(!f)return;
+  let raw;
+  try{raw=JSON.parse(await f.text())}catch(err){alert("That file is not valid JSON.");return}
+  const {out,bad}=normalise(raw);
+  const key=l=>`${l.date}|${l.amt}|${l.note.toLowerCase()}`;
+  const have=new Set(S.ledger.map(key)), ids=new Set(S.ledger.map(l=>l.id));
+  const fresh=out.filter(l=>!have.has(key(l))&&!(l.id&&ids.has(l.id)));
+  const dup=out.length-fresh.length;
+  if(!out.length){alert("No usable entries found. Each entry needs a date and an amount."+(bad.length?`\n\nSkipped entries: ${bad.length}`:""));return}
+  const sample=fresh.slice(0,5).map(l=>`${fmt(l.date)}  ${inr(l.amt)}  ${l.note.slice(0,40)}`).join("\n");
+  if(!confirm(`Import ${fresh.length} new entr${fresh.length===1?"y":"ies"} for ${S.advocates[0].name}?\n\nAlready present (skipped): ${dup}\nUnreadable (skipped): ${bad.length}${bad.length?" (entry no. "+bad.slice(0,10).join(", ")+")":""}\n\nFirst few:\n${sample}`))return;
+  fresh.forEach((l,i)=>S.ledger.push({id:l.id&&!ids.has(l.id)?l.id:"l"+Date.now()+"_"+i,date:l.date,adv:S.advocates[0].id,note:l.note,amt:l.amt,flag:l.flag}));
+  save();render();saved();
 };
 document.getElementById("rst").onclick=()=>{
   if(confirm("Reset everything to the starting data?")){S=seed();save();render()}
