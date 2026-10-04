@@ -45,12 +45,29 @@ input,select,button{font:inherit;padding:9px 10px;border-radius:8px;border:1px s
 button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
 button.ghost{background:transparent;color:var(--mute);border-color:var(--line);padding:3px 9px;font-size:.8rem}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+form>*{min-width:0;width:100%}
+.card h3 a{color:var(--ink);text-decoration:none}.card h3 a:hover,.card a.open:hover{text-decoration:underline}
+.card a.open{color:var(--accent);font-size:.88rem;font-weight:600;text-decoration:none}
+h2.lx{margin-top:44px}
+.h2sub{color:var(--mute);font-size:.88rem;margin:0 0 12px}
+.chan{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+.chan h3{margin:0 0 8px;font-size:.98rem}
+.chan ul{list-style:none;margin:0;padding:0}
+.chan li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.chan li .dt{color:var(--mute);white-space:nowrap;font-size:.8rem;padding-top:2px}
+.chan li .ednote{flex:1}
+.chan .empty{color:var(--mute);font-size:.85rem;padding:6px 0}
+form.cf{grid-template-columns:155px 1fr auto;margin-top:10px}
+@media (max-width:720px){form.cf{grid-template-columns:1fr auto}form.cf input[type=date]{grid-column:1/-1}}
+.contact{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.contact b{font-size:.8rem;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.ednote.ph-contact:empty:before{content:"Click to add contact details\2026"}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Case Advocates</h1>
-  <p class="sub">Pehowa tehsil land matter &middot; draft v0.5 &middot; saved only in this browser</p>
+  <p class="sub">Pehowa tehsil land matter &middot; draft v0.6 &middot; saved only in this browser</p>
 
   <div class="stats">
     <div class="stat"><b id="sAdv">0</b><span>Advocates</span></div>
@@ -83,22 +100,40 @@ button.ghost{background:transparent;color:var(--mute);border-color:var(--line);p
     <span class="st" id="st">Saved</span>
   </div>
 
+  <h2 class="lx">Luthra and Luthra: report and guidance channel</h2>
+  <p class="h2sub">Send them reports, and log the guidance that comes back. Click any entry to edit; it saves when you click away.</p>
+  <div class="card contact"><b>Contact</b><span class="ednote ph-contact" id="lContact" contenteditable="true" spellcheck="false"></span></div>
+  <div class="chan" id="lux">
+    <div class="card"><h3>Reports sent</h3><ul id="lReports"></ul>
+      <form class="cf" data-k="reports"><input type="date" name="d" required><input type="text" name="t" placeholder="What was sent, and to whom" required><button>Add</button></form></div>
+    <div class="card"><h3>Guidance received</h3><ul id="lGuidance"></ul>
+      <form class="cf" data-k="guidance"><input type="date" name="d" required><input type="text" name="t" placeholder="What they advised" required><button>Add</button></form></div>
+  </div>
+
 </div>
 
 <script>
-const KEY="advocate-draft-v2";
+const KEY="advocate-draft-v3";
+const LINKS={a1:"https://takseem.vipulanand.in/advocate/sumitgarg/"};
 const seed=()=>({
   advocates:[
     {id:"a1",name:"Advocate Sumit Garg",role:"Prepared the file",note:"Delayed the process."}
   ],
   ledger:[
-    {id:"l1",date:"2025-04-12",adv:"a1",note:"Paid",amt:25000,flag:false},
-    {id:"l2",date:"2025-07-11",adv:"a1",note:"Part of 12,500",amt:6500,flag:false},
-    {id:"l3",date:"2025-11-17",adv:"a1",note:"Written as '-6k'. Assumed balance of 12,500 - confirm",amt:6000,flag:true}
-  ]
+    {id:"l1",date:"2025-04-12",adv:"a1",note:"fee from 55k",amt:25000,flag:false},
+    {id:"l2",date:"2025-07-11",adv:"a1",note:"registered post summons to existing 21 parties",amt:6500,flag:false},
+    {id:"l3",date:"2025-11-17",adv:"a1",note:"registered letter with acknoledgements.",amt:6000,flag:false},
+    {id:"l1791099961482",date:"2025-02-13",adv:"a1",note:"booking advance for fees of 55000/- fixed / refered by Mr. D.Mangla",amt:5000,flag:false},
+    {id:"l1791100595707",date:"2025-03-10",adv:"a1",note:"file typing preparation of file for presenting the case in the court",amt:3000,flag:false},
+    {id:"l1791101870885",date:"2025-03-12",adv:"a1",note:"File ready, filling expenses for summons .",amt:10000,flag:false},
+    {id:"l1791110404296",date:"2025-12-24",adv:"a1",note:"unknown i don't know why i transferred thismaybe sumit knows.",amt:2000,flag:false}
+  ],
+  luthra:{contact:"",reports:[],guidance:[]}
 });
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
+S.luthra=S.luthra||{contact:"",reports:[],guidance:[]};
+const $=id=>document.getElementById(id);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const inr=n=>Number(n).toLocaleString("en-IN");
@@ -111,7 +146,8 @@ function render(){
   document.getElementById("foot").innerHTML=`<tr><td colspan="3">Total paid &middot; ${n} entr${n===1?"y":"ies"}</td><td class="amt" id="tTot">${inr(tot)}</td><td></td></tr>`;
   document.getElementById("cards").innerHTML=S.advocates.map(a=>{
     const t=S.ledger.filter(l=>l.adv===a.id).reduce((x,l)=>x+l.amt,0);
-    return `<div class="card"><h3>${esc(a.name)}</h3><span class="tag">${esc(a.role)}</span><p>${esc(a.note)}</p><p><b>&#8377;${inr(t)}</b> paid so far</p></div>`}).join("");
+    const u=LINKS[a.id];
+    return `<div class="card"><h3>${u?`<a href="${u}">${esc(a.name)}</a>`:esc(a.name)}</h3><span class="tag">${esc(a.role)}</span><p>${esc(a.note)}</p><p><b>&#8377;${inr(t)}</b> paid so far</p>${u?`<p><a class="open" href="${u}">Open full page: fee vs court expenses &rarr;</a></p>`:""}</div>`}).join("");
   const nm=id=>(S.advocates.find(a=>a.id===id)||{name:"?"}).name;
   document.getElementById("rows").innerHTML=[...S.ledger].sort((a,b)=>a.date<b.date?-1:1).map(l=>
     `<tr><td>${fmt(l.date)}</td><td>${esc(nm(l.adv))}</td><td><span class="ednote" contenteditable="true" spellcheck="false" data-n="${l.id}" title="Click to edit">${esc(l.note)}</span>${l.flag?`<span class="flag" data-f="${l.id}" title="Click once confirmed">confirm</span>`:''}</td><td class="amt">${inr(l.amt)}</td><td><button class="ghost" data-d="${l.id}">&times;</button></td></tr>`).join("");
@@ -210,6 +246,47 @@ document.getElementById("impf").onchange=async e=>{
 document.getElementById("rst").onclick=()=>{
   if(confirm("Reset everything to the starting data?")){S=seed();save();render()}
 };
+/* ---- Luthra and Luthra channel ---- */
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const LKIND={reports:"lReports",guidance:"lGuidance"};
+function renderLux(){
+  const L=S.luthra;
+  if(document.activeElement!==$("lContact"))$("lContact").textContent=L.contact||"";
+  for(const k in LKIND){
+    const items=[...L[k]].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+    $(LKIND[k]).innerHTML=items.length?items.map(x=>`<li><span class="dt">${fmt(x.date)}</span><span class="ednote" contenteditable="true" spellcheck="false" data-k="${k}" data-id="${x.id}" title="Click to edit">${esc(x.text)}</span><button class="ghost" data-lk="${k}" data-lid="${x.id}" aria-label="Delete entry">&times;</button></li>`).join(""):`<li class="empty">Nothing logged yet.</li>`;
+  }
+  document.querySelectorAll("form.cf input[type=date]").forEach(i=>{if(!i.value)i.value=today()});
+}
+function luxSaved(){const st=$("st");st.classList.add("on");setTimeout(()=>st.classList.remove("on"),1400)}
+$("lContact").addEventListener("blur",e=>{const v=e.target.innerText.replace(/\s+/g," ").trim();e.target.textContent=v;if(v!==S.luthra.contact){S.luthra.contact=v;save();luxSaved()}});
+$("lContact").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur()}});
+const luxEl=$("lux");
+luxEl.addEventListener("focusout",e=>{
+  const el=e.target.closest&&e.target.closest(".ednote[data-k]");if(!el)return;
+  const it=S.luthra[el.dataset.k].find(x=>x.id===el.dataset.id);if(!it)return;
+  const v=el.innerText.replace(/\s+/g," ").trim();el.textContent=v;
+  if(v!==it.text){it.text=v;save();luxSaved()}
+});
+luxEl.addEventListener("keydown",e=>{
+  const el=e.target.closest&&e.target.closest(".ednote[data-k]");if(!el)return;
+  if(e.key==="Enter"){e.preventDefault();el.blur()}
+  if(e.key==="Escape"){const it=S.luthra[el.dataset.k].find(x=>x.id===el.dataset.id);el.textContent=it?it.text:"";el.blur()}
+});
+luxEl.addEventListener("click",e=>{
+  const k=e.target.dataset.lk;if(!k)return;
+  if(confirm("Delete this entry?")){S.luthra[k]=S.luthra[k].filter(x=>x.id!==e.target.dataset.lid);save();renderLux()}
+});
+luxEl.addEventListener("submit",e=>{
+  e.preventDefault();const f=e.target,k=f.dataset.k;
+  S.luthra[k].push({id:"x"+Date.now(),date:f.d.value,text:f.t.value.trim()});
+  save();f.t.value="";renderLux();luxSaved();
+});
+document.addEventListener("paste",e=>{
+  if(!(e.target.closest&&e.target.closest("#lux .ednote,#lContact")))return;
+  e.preventDefault();document.execCommand("insertText",false,(e.clipboardData||window.clipboardData).getData("text/plain"));
+});
+const _render=render; render=function(){_render();renderLux()};
 render();
 </script>
 </body>
