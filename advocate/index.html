@@ -1,5 +1,134 @@
-
+<!--
 list of lawyers engaged in the case.
 1. advocate sumit garg[prepared the file][but got greedy and delayed the process 25k[12/04/25] paid plus 12500 [6500/11/07/25]+[-6k/17/11/25]]
 advocate lukhwinder singh[lucy patwari adhoc proxy for pateari in pehowa tehsil land area].
-2. advocate lukhwinder[lucky].
+2. advocate lukhwinder[lucky].-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Case Advocates</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1f2933;--mute:#6b7280;--line:#e3ded2;--accent:#2f5d50;--warn:#b45309;--warnbg:#fef3c7}
+@media (prefers-color-scheme:dark){:root{--bg:#14181a;--card:#1d2326;--ink:#e8ecee;--mute:#9aa5ab;--line:#2c3539;--accent:#6fb59f;--warn:#f5b042;--warnbg:#3a2e12}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 20px;font-size:.9rem}
+h2{font-size:1.05rem;margin:28px 0 10px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat b{display:block;font-size:1.4rem}
+.stat span{color:var(--mute);font-size:.8rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card h3{margin:0 0 2px;font-size:1.05rem}
+.tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--mute);margin-bottom:8px}
+.card p{margin:6px 0 0;font-size:.9rem}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.9rem}
+th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.75rem;text-transform:uppercase;color:var(--mute);letter-spacing:.05em}
+td.amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.flag{background:var(--warnbg);color:var(--warn);font-size:.7rem;padding:1px 7px;border-radius:99px;margin-left:6px}
+.scroll{overflow-x:auto}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px}
+input,select,button{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
+button.ghost{background:transparent;color:var(--mute);border-color:var(--line);padding:3px 9px;font-size:.8rem}
+.note{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:14px;color:var(--mute)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Case Advocates</h1>
+  <p class="sub">Pehowa tehsil land matter &middot; draft v0.1 &middot; saved only in this browser</p>
+
+  <div class="stats">
+    <div class="stat"><b id="sAdv">0</b><span>Advocates</span></div>
+    <div class="stat"><b id="sPaid">0</b><span>Total paid (&#8377;)</span></div>
+    <div class="stat"><b id="sFlag">0</b><span>Entries to confirm</span></div>
+  </div>
+
+  <h2>Advocates</h2>
+  <div class="cards" id="cards"></div>
+
+  <h2>Payment ledger</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Date</th><th>Advocate</th><th>Note</th><th style="text-align:right">&#8377;</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+
+  <form id="f">
+    <input type="date" id="fd" required>
+    <select id="fa" required></select>
+    <input id="fn" placeholder="Note">
+    <input type="number" id="fm" placeholder="Amount (use - for refund)" required>
+    <button>Add entry</button>
+  </form>
+  <div class="row">
+    <button class="ghost" id="exp">Export JSON</button>
+    <button class="ghost" id="rst">Reset to original note</button>
+  </div>
+
+  <h2>Original note (verbatim)</h2>
+  <div class="note">list of lawyers engaged in the case.
+1. advocate sumit garg[prepared the file][but got greedy and delayed the process 25k[12/04/25] paid plus 12500 [6500/11/07/25]+[-6k/17/11/25]]
+advocate lukhwinder singh[lucy patwari adhoc proxy for pateari in pehowa tehsil land area].
+2. advocate lukhwinder[lucky].</div>
+</div>
+
+<script>
+const KEY="advocate-draft-v1";
+const seed=()=>({
+  advocates:[
+    {id:"a1",name:"Advocate Sumit Garg",role:"Prepared the file",note:"Delayed the process (per original note)."},
+    {id:"a2",name:"Advocate Lukhwinder Singh",role:"Ad hoc proxy, Pehowa tehsil land area",note:"Appears to be the same person as 'Lucky' (entry 2) - confirm."}
+  ],
+  ledger:[
+    {id:"l1",date:"2025-04-12",adv:"a1",note:"Paid",amt:25000,flag:false},
+    {id:"l2",date:"2025-07-11",adv:"a1",note:"Part of 12,500",amt:6500,flag:false},
+    {id:"l3",date:"2025-11-17",adv:"a1",note:"Written as '-6k'. Assumed balance of 12,500 - confirm",amt:6000,flag:true}
+  ]
+});
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr=n=>Number(n).toLocaleString("en-IN");
+const fmt=d=>{const [y,m,dd]=d.split("-");return `${dd}/${m}/${y.slice(2)}`};
+function render(){
+  document.getElementById("sAdv").textContent=S.advocates.length;
+  document.getElementById("sPaid").textContent=inr(S.ledger.reduce((a,l)=>a+l.amt,0));
+  document.getElementById("sFlag").textContent=S.ledger.filter(l=>l.flag).length;
+  document.getElementById("cards").innerHTML=S.advocates.map(a=>{
+    const t=S.ledger.filter(l=>l.adv===a.id).reduce((x,l)=>x+l.amt,0);
+    return `<div class="card"><h3>${esc(a.name)}</h3><span class="tag">${esc(a.role)}</span><p>${esc(a.note)}</p><p><b>&#8377;${inr(t)}</b> paid so far</p></div>`}).join("");
+  const nm=id=>(S.advocates.find(a=>a.id===id)||{name:"?"}).name;
+  document.getElementById("rows").innerHTML=[...S.ledger].sort((a,b)=>a.date<b.date?-1:1).map(l=>
+    `<tr><td>${fmt(l.date)}</td><td>${esc(nm(l.adv))}</td><td>${esc(l.note)}${l.flag?'<span class="flag">confirm</span>':''}</td><td class="amt">${inr(l.amt)}</td><td><button class="ghost" data-d="${l.id}">&times;</button></td></tr>`).join("");
+  document.getElementById("fa").innerHTML=S.advocates.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("");
+}
+document.getElementById("f").onsubmit=e=>{
+  e.preventDefault();
+  S.ledger.push({id:"l"+Date.now(),date:fd.value,adv:fa.value,note:fn.value,amt:Number(fm.value),flag:false});
+  save();render();e.target.reset();
+};
+document.getElementById("rows").onclick=e=>{
+  const id=e.target.dataset.d;
+  if(id&&confirm("Delete this entry?")){S.ledger=S.ledger.filter(l=>l.id!==id);save();render()}
+};
+document.getElementById("exp").onclick=()=>{
+  const b=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="advocates.json";a.click();
+};
+document.getElementById("rst").onclick=()=>{
+  if(confirm("Reset everything to the original note?")){S=seed();save();render()}
+};
+render();
+</script>
+</body>
+</html>
+
