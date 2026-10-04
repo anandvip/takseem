@@ -31,20 +31,25 @@ table{width:100%;border-collapse:collapse;background:var(--card);border:1px soli
 th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:.75rem;text-transform:uppercase;color:var(--mute);letter-spacing:.05em}
 td.amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.flag{background:var(--warnbg);color:var(--warn);font-size:.7rem;padding:1px 7px;border-radius:99px;margin-left:6px}
+.flag{background:var(--warnbg);color:var(--warn);font-size:.7rem;padding:1px 7px;border-radius:99px;margin-left:6px;cursor:pointer;user-select:none}
+.ednote{display:inline-block;min-width:6ch;max-width:100%;padding:1px 6px;margin:-1px -6px;border-radius:6px;border:1px solid transparent;cursor:text;outline:none;overflow-wrap:anywhere}
+.ednote:hover{border-color:var(--line)}
+.ednote:focus{border-color:var(--accent);background:var(--bg)}
+.ednote:empty:before{content:"Add note\2026";color:var(--mute)}
+.st{color:var(--accent);font-size:.8rem;align-self:center;opacity:0;transition:opacity .25s}
+.st.on{opacity:1}
 .scroll{overflow-x:auto}
 form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px}
 input,select,button{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
 button.ghost{background:transparent;color:var(--mute);border-color:var(--line);padding:3px 9px;font-size:.8rem}
-.note{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:14px;color:var(--mute)}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Case Advocates</h1>
-  <p class="sub">Pehowa tehsil land matter &middot; draft v0.1 &middot; saved only in this browser</p>
+  <p class="sub">Pehowa tehsil land matter &middot; draft v0.3 &middot; saved only in this browser</p>
 
   <div class="stats">
     <div class="stat"><b id="sAdv">0</b><span>Advocates</span></div>
@@ -70,22 +75,17 @@ button.ghost{background:transparent;color:var(--mute);border-color:var(--line);p
   </form>
   <div class="row">
     <button class="ghost" id="exp">Export JSON</button>
-    <button class="ghost" id="rst">Reset to original note</button>
+    <button class="ghost" id="rst">Reset to starting data</button>
+    <span class="st" id="st">Saved</span>
   </div>
 
-  <h2>Original note (verbatim)</h2>
-  <div class="note">list of lawyers engaged in the case.
-1. advocate sumit garg[prepared the file][but got greedy and delayed the process 25k[12/04/25] paid plus 12500 [6500/11/07/25]+[-6k/17/11/25]]
-advocate lukhwinder singh[lucy patwari adhoc proxy for pateari in pehowa tehsil land area].
-2. advocate lukhwinder[lucky].</div>
 </div>
 
 <script>
-const KEY="advocate-draft-v1";
+const KEY="advocate-draft-v2";
 const seed=()=>({
   advocates:[
-    {id:"a1",name:"Advocate Sumit Garg",role:"Prepared the file",note:"Delayed the process (per original note)."},
-    {id:"a2",name:"Advocate Lukhwinder Singh",role:"Ad hoc proxy, Pehowa tehsil land area",note:"Appears to be the same person as 'Lucky' (entry 2) - confirm."}
+    {id:"a1",name:"Advocate Sumit Garg",role:"Prepared the file",note:"Delayed the process."}
   ],
   ledger:[
     {id:"l1",date:"2025-04-12",adv:"a1",note:"Paid",amt:25000,flag:false},
@@ -108,7 +108,7 @@ function render(){
     return `<div class="card"><h3>${esc(a.name)}</h3><span class="tag">${esc(a.role)}</span><p>${esc(a.note)}</p><p><b>&#8377;${inr(t)}</b> paid so far</p></div>`}).join("");
   const nm=id=>(S.advocates.find(a=>a.id===id)||{name:"?"}).name;
   document.getElementById("rows").innerHTML=[...S.ledger].sort((a,b)=>a.date<b.date?-1:1).map(l=>
-    `<tr><td>${fmt(l.date)}</td><td>${esc(nm(l.adv))}</td><td>${esc(l.note)}${l.flag?'<span class="flag">confirm</span>':''}</td><td class="amt">${inr(l.amt)}</td><td><button class="ghost" data-d="${l.id}">&times;</button></td></tr>`).join("");
+    `<tr><td>${fmt(l.date)}</td><td>${esc(nm(l.adv))}</td><td><span class="ednote" contenteditable="true" spellcheck="false" data-n="${l.id}" title="Click to edit">${esc(l.note)}</span>${l.flag?`<span class="flag" data-f="${l.id}" title="Click once confirmed">confirm</span>`:''}</td><td class="amt">${inr(l.amt)}</td><td><button class="ghost" data-d="${l.id}">&times;</button></td></tr>`).join("");
   document.getElementById("fa").innerHTML=S.advocates.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("");
 }
 document.getElementById("f").onsubmit=e=>{
@@ -116,16 +116,41 @@ document.getElementById("f").onsubmit=e=>{
   S.ledger.push({id:"l"+Date.now(),date:fd.value,adv:fa.value,note:fn.value,amt:Number(fm.value),flag:false});
   save();render();e.target.reset();
 };
-document.getElementById("rows").onclick=e=>{
-  const id=e.target.dataset.d;
+const rowsEl=document.getElementById("rows");
+rowsEl.onclick=e=>{
+  const id=e.target.dataset.d, fid=e.target.dataset.f;
   if(id&&confirm("Delete this entry?")){S.ledger=S.ledger.filter(l=>l.id!==id);save();render()}
+  if(fid){const l=S.ledger.find(x=>x.id===fid);if(l){l.flag=false;save();render()}}
 };
+// notes: edit in place on click, save on blur
+let stT;
+function saved(){const st=document.getElementById("st");st.classList.add("on");clearTimeout(stT);stT=setTimeout(()=>st.classList.remove("on"),1400)}
+rowsEl.addEventListener("focusout",e=>{
+  const el=e.target.closest&&e.target.closest(".ednote");
+  if(!el)return;
+  const l=S.ledger.find(x=>x.id===el.dataset.n);
+  if(!l)return;
+  const v=el.innerText.replace(/\s+/g," ").trim();
+  el.textContent=v;
+  if(v!==l.note){l.note=v;save();saved()}
+});
+rowsEl.addEventListener("keydown",e=>{
+  const el=e.target.closest&&e.target.closest(".ednote");
+  if(!el)return;
+  if(e.key==="Enter"){e.preventDefault();el.blur()}
+  if(e.key==="Escape"){const l=S.ledger.find(x=>x.id===el.dataset.n);el.textContent=l?l.note:"";el.blur()}
+});
+rowsEl.addEventListener("paste",e=>{
+  if(!(e.target.closest&&e.target.closest(".ednote")))return;
+  e.preventDefault();
+  document.execCommand("insertText",false,(e.clipboardData||window.clipboardData).getData("text/plain"));
+});
 document.getElementById("exp").onclick=()=>{
   const b=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="advocates.json";a.click();
 };
 document.getElementById("rst").onclick=()=>{
-  if(confirm("Reset everything to the original note?")){S=seed();save();render()}
+  if(confirm("Reset everything to the starting data?")){S=seed();save();render()}
 };
 render();
 </script>
